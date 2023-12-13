@@ -1,9 +1,8 @@
 plannification des congés 
-Lundi  :2
+Lundi  :5
 Mardi  :0
-Mercredi  :0
+Mercredi  :7
 Jeudi  :0
-Vendredi  :0
-Samedi  :4
+Vendredi  :3
+Samedi  :0
 Dimanche  :0
-le nombre totale optimale des employés est  6

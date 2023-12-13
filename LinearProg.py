@@ -2,6 +2,10 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPu
 from PyQt5.QtCore import Qt
 from pl3 import PL3_Ui
 from pl5 import AntennaPlacementSolver
+from pl6 import Networkproblem
+from pl1 import AgriculturalZoneOptimizationUI
+from pl2 import ProductionOptimizationApp
+from pl4 import BankBranchOptimizationGUI
 import sys
 
 class LPInterface(QWidget):
@@ -19,14 +23,15 @@ class LPInterface(QWidget):
         button4 = QPushButton("Exercice 4")
         button5 = QPushButton("Exercice 5")
         button6 = QPushButton("Exercice 6")
-
+        button1.clicked.connect(self.show_pl1_ui)
+        button2.clicked.connect(self.show_pl2_ui) 
         button3.clicked.connect(self.show_pl3_ui)
+        button4.clicked.connect(self.show_pl4_ui)
         button5.clicked.connect(self.show_pl5_ui)
-
+        button6.clicked.connect(self.show_pl6_ui)
         # Create layout
         layout = QVBoxLayout()
         layout.addWidget(label, alignment=Qt.AlignCenter)
-
         # Create horizontal layouts for left and right buttons
         left_button_layout = QHBoxLayout()
         left_button_layout.addWidget(button1)
@@ -44,16 +49,25 @@ class LPInterface(QWidget):
 
         # Set main layout for the window
         self.setLayout(layout)
-
+        self.pl1_ui=AgriculturalZoneOptimizationUI()
+        self.pl2_ui=ProductionOptimizationApp()
         self.pl3_ui = PL3_Ui()
+        self.pl4_ui = BankBranchOptimizationGUI()
         self.pl5_ui = AntennaPlacementSolver()
+        self.pl6_ui= Networkproblem()
 
     def show_pl3_ui(self):
         self.pl3_ui.show()
-
+    def show_pl4_ui(self):
+        self.pl4_ui.show()    
+    def show_pl1_ui(self):
+        self.pl1_ui.show()
+    def show_pl2_ui(self):
+        self.pl2_ui.show()        
     def show_pl5_ui(self):
         self.pl5_ui.show()
-
+    def show_pl6_ui(self):
+        self.pl6_ui.show()    
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     style = """
