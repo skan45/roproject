@@ -131,11 +131,9 @@ class ProductionOptimizationApp(QMainWindow):
             H = float(self.inputs['H'].text())
             Hmax = float(self.inputs['Hmax'].text())
             StockInit = float(self.inputs['StockInit'].text())
-
             results = self.PL2(
                 4, C, Cs, D, Ouv, Sal, Hsup, R, L, h, H, Hmax, StockInit
             )
-
             # Display the results
             self.result_text.clear()
             for month, data in results.items():
