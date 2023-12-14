@@ -93,14 +93,10 @@ class ProductionOptimizationApp(QMainWindow):
         for mo in range(months_number):
             m.addConstr(production[mo] * hours_per_pair <= working_hours * workers[mo] + overtime[mo])
 
-        # Non-negativity of stock
         for mo in range(months_number):
             m.addConstr(stock[mo] >= 0)
-
-        # Optimize
         m.optimize()
 
-        # Check if the solution is optimal and return results
         results = {}
         if m.status == GRB.OPTIMAL:
             for month in range(months_number):

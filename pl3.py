@@ -42,23 +42,16 @@ class PL3_Ui(QtWidgets.QWidget):
             "Nombre d'employés Pour Dimanche"
         ]
         self.input_fields = []
-
         for label in self.labels:
             label_widget = QtWidgets.QLabel(label)
             input_field = QtWidgets.QLineEdit()
             self.input_fields.append(input_field)
-
-            # Set style for label
             label_widget.setStyleSheet("color: #fff; font-size: 12pt;")
-
-            # Set style for input field
             input_field.setStyleSheet(
                 "padding: 5px; color: #fff; border-style: solid; border: 2px solid #fff; border-radius: 8px; font-size: 12pt;"
             )
-
             layout.addWidget(label_widget)
             layout.addWidget(input_field)
-
         # Results Button
         results_button = QtWidgets.QPushButton('Résoudre')
         results_button.clicked.connect(self.planification)

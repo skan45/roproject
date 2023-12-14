@@ -1,7 +1,7 @@
 import sys
 from gurobipy import Model, GRB, quicksum
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, 
-                             QGridLayout, QPushButton, QLineEdit, QLabel,QMessageBox)
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget,
+                             QGridLayout, QPushButton, QLineEdit, QLabel, QMessageBox)
 
 class AgriculturalZoneOptimizationUI(QMainWindow):
     def __init__(self):
@@ -55,13 +55,14 @@ class AgriculturalZoneOptimizationUI(QMainWindow):
 
         # Additional inputs for global constraints
         self.additional_labels = ['Irrigation water (m3)', 'Machine hours', 'Labor']
-        
+
         for i, label_text in enumerate(self.additional_labels, len(self.params) + 2):
             label = QLabel(label_text)
             line_edit = QLineEdit()
             self.gridLayout.addWidget(label, i, 0)
             self.gridLayout.addWidget(line_edit, i, 1)
             self.additional_entries[label_text] = line_edit
+
         for cult, params in self.default_values.items():
             for param, value in params.items():
                 line_edit = QLineEdit(str(value))
@@ -72,10 +73,10 @@ class AgriculturalZoneOptimizationUI(QMainWindow):
         for i, (label_text, default) in enumerate(self.additional_defaults.items(), len(self.params) + 2):
             line_edit = QLineEdit(default)
             self.gridLayout.addWidget(line_edit, i, 1)
-            self.additional_entries[label_text] = line_edit    
+            self.additional_entries[label_text] = line_edit
+
         # Solve button (doesn't do anything yet)
         self.solveButton = QPushButton('Solve LP')
-        ###self.solveButton.clicked.connect(self.solve_agriculture_probelm)
         self.gridLayout.addWidget(self.solveButton, len(self.params) + len(self.additional_labels) + 3, 0, 1, len(self.cultures) + 1)
         self.solveButton.clicked.connect(self.solve_agriculture_problem)
 
@@ -131,12 +132,16 @@ class AgriculturalZoneOptimizationUI(QMainWindow):
         m.addConstr(quicksum(x[cult] * values[cult]['labor'] for cult in self.cultures) <= labor, "Labor")
         m.addConstr(quicksum(x[cult] * values[cult]['machine_time'] for cult in self.cultures) <= machine_hours, "MachineHours")
         m.addConstr(quicksum(x[cult] * values[cult]['water'] for cult in self.cultures) <= irrigation_water, "IrrigationWater")
+        
+        # Additional constraint to limit total hectares to 1000
+        m.addConstr(quicksum(x[cult] for cult in self.cultures) <= 1000, "TotalHectares")
 
         # Optimize model
         m.optimize()
 
         # Display results
         result = "\n".join(f"{cult} hectares: {x[cult].X}" for cult in self.cultures)
+        result += f"\nTotal cultivated hectares: {quicksum(x[cult] for cult in self.cultures).getValue()}"
         result += f"\nOptimal profit: {m.objVal}"
         return result
 
@@ -147,14 +152,14 @@ class AgriculturalZoneOptimizationUI(QMainWindow):
         msg.setText(result_text)
         msg.setStandardButtons(QMessageBox.Ok)
         msg.exec()
+
     def show_error_popup(self, error_msg):
         msg = QMessageBox()
         msg.setWindowTitle("Error")
         msg.setIcon(QMessageBox.Critical)
         msg.setText(error_msg)
         msg.setStandardButtons(QMessageBox.Ok)
-        msg.exec()             
-       
+        msg.exec()
 
 def main():
     app = QApplication(sys.argv)
