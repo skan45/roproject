@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPu
 from PyQt5.QtCore import Qt
 from pl3 import PL3_Ui
 from pl5 import AntennaPlacementSolver
-from pl6 import Networkproblem
+from pl6 import AddNetworkElements,Networkproblem
 from pl1 import AgriculturalZoneOptimizationUI
 from pl2 import ProductionOptimizationApp
 from pl4 import BankBranchOptimizationGUI
@@ -54,7 +54,7 @@ class LPInterface(QWidget):
         self.pl3_ui = PL3_Ui()
         self.pl4_ui = BankBranchOptimizationGUI()
         self.pl5_ui = AntennaPlacementSolver()
-        self.pl6_ui= Networkproblem()
+        self.pl6_ui= AddNetworkElements(Networkproblem())
 
     def show_pl3_ui(self):
         self.pl3_ui.show()

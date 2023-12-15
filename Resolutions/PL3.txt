@@ -1,8 +1,8 @@
 plannification des congés 
-Lundi  :5
+Lundi  :0
 Mardi  :0
 Mercredi  :7
 Jeudi  :0
-Vendredi  :3
+Vendredi  :6
 Samedi  :0
 Dimanche  :0
