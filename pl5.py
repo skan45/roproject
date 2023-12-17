@@ -1,158 +1,171 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QMessageBox
-import gurobipy as gp
-from gurobipy import GRB
+import random
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
+                             QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsEllipseItem, QMessageBox)
+from PyQt5.QtCore import Qt, QRectF
+from PyQt5.QtGui import QBrush, QColor, QPen
+from gurobipy import Model, GRB
 
-class AntennaPlacementSolver(QWidget):
+def generate_random_color():
+    return QColor(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
+class InteractiveMap(QGraphicsView):
+    def __init__(self, zones, parent=None):
+        super().__init__(parent)
+        self.scene = QGraphicsScene(self)
+        self.setScene(self.scene)
+        self.setFixedSize(800, 600)
+        self.sites = []
+        self.zones = zones
+        self.draw_zones()
+        self.setMouseTracking(True)
+
+    def draw_zones(self):
+        boundary_pen = QPen(QColor(0, 0, 0), 10)  # Thick black border for zones
+        for zone_name, zone_info in self.zones.items():
+            rect = QRectF(zone_info['x'], zone_info['y'], zone_info['width'], zone_info['height'])
+            zone_rect = QGraphicsRectItem(rect)
+            zone_rect.setBrush(QBrush(zone_info['color']))
+            zone_rect.setPen(boundary_pen)
+            self.scene.addItem(zone_rect)
+            self.zones[zone_name]['rect'] = zone_rect
+
+    def mouseMoveEvent(self, event):
+        scene_pos = self.mapToScene(event.pos())
+        on_boundary = self.is_on_boundary(scene_pos)
+        if on_boundary:
+            self.setCursor(Qt.CrossCursor)  # Change cursor style when on boundary
+        else:
+            self.setCursor(Qt.ArrowCursor)  # Default cursor elsewhere
+
+    def is_on_boundary(self, pos):
+        for zone_info in self.zones.values():
+            if zone_info['rect'].sceneBoundingRect().contains(pos):
+                return True
+        return False
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.add_site(event.pos())
+
+    def add_site(self, pos):
+        scene_pos = self.mapToScene(pos)
+        if self.is_on_boundary(scene_pos):
+            site = QGraphicsEllipseItem(scene_pos.x() - 5, scene_pos.y() - 5, 10, 10)
+            site.setBrush(QBrush(Qt.white))  # Set site color to white
+            self.scene.addItem(site)
+            self.sites.append((site, None))
+
+class MainApplicationWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.zones = {}
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle('Antenna Optimizer')
+        self.setWindowTitle('Antenna Placement Optimization')
+        main_layout = QVBoxLayout(self.central_widget)
 
-        # Title label
-        self.label_title = QLabel('Antenna Solver', self)
-        font = self.label_title.font()
-        font.setPointSize(25)
-        self.label_title.setFont(font)
+        zone_layout = QHBoxLayout()
+        self.zones_input = QLineEdit()
+        self.zones_submit_button = QPushButton('Submit Zones')
+        zone_layout.addWidget(QLabel('Enter zones (comma-separated):'))
+        zone_layout.addWidget(self.zones_input)
+        zone_layout.addWidget(self.zones_submit_button)
 
-        # Labels and input widgets
-        self.num_antennes_label = QLabel('Number of Antennas:')
-        self.num_antennes_entry = QLineEdit(self)
+        main_layout.addLayout(zone_layout)
 
-        self.num_zones_label = QLabel('Number of Zones:')
-        self.num_zones_entry = QLineEdit(self)
+        self.zones_submit_button.clicked.connect(self.submit_zones)
 
-        self.min_antennes_label = QLabel('Minimum Antennas per Zone (comma-separated):')
-        self.min_antennes_entry = QLineEdit(self)
+        self.map_view = None
+        self.solve_button = QPushButton('Solve Optimization', self)
+        self.solve_button.clicked.connect(self.solve_optimization)
+        self.solve_button.setEnabled(False)
+        main_layout.addWidget(self.solve_button)
 
-        # Solve button
-        self.solve_button = QPushButton('Résoudre', self)
-        self.solve_button.setStyleSheet(
-            "QPushButton { border-radius: 20px; background-color: #0577a8; color: white; font-weight: bold; font-size: 12pt; }"
-            "QPushButton:hover{ border: 2px #C6C6C6 solid; color: #fff; background: #0892D0; }"
-        )
-        self.solve_button.clicked.connect(self.solve_antenna_optimization)
+    def submit_zones(self):
+        zones_str = self.zones_input.text()
+        zone_names = [zone_name.strip() for zone_name in zones_str.split(',') if zone_name.strip()]
+        num_zones = len(zone_names)
+        if num_zones > 0:
+            self.define_zones(num_zones, zone_names)
+            self.init_map_view()
+            self.solve_button.setEnabled(True)
+        else:
+            QMessageBox.warning(self, 'Warning', 'Please enter at least one zone.', QMessageBox.Ok)
 
-        # Layout
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.label_title)
-        layout.addSpacing(10)  # Add space
-        layout.addWidget(self.num_antennes_label)
-        layout.addWidget(self.num_antennes_entry)
-        layout.addWidget(self.num_zones_label)
-        layout.addWidget(self.num_zones_entry)
-        layout.addWidget(self.min_antennes_label)
-        layout.addWidget(self.min_antennes_entry)
-        layout.addWidget(self.solve_button)
+    def define_zones(self, num_zones, zone_names):
+        zone_width, zone_height = 200, 150
+        for i, zone_name in enumerate(zone_names):
+            x = (i % 2) * zone_width
+            y = (i // 2) * zone_height
+            self.zones[zone_name] = {'x': x, 'y': y, 'width': zone_width, 'height': zone_height, 'color': generate_random_color()}
 
-        
+    def init_map_view(self):
+        if self.map_view:
+            self.map_view.deleteLater()
 
-    def solve_antenna_optimization(self):
+        self.map_view = InteractiveMap(self.zones, self)
+        self.central_widget.layout().addWidget(self.map_view)
+
+    def solve_optimization(self):
         try:
-            # Get user input
-            num_antennes = int(self.num_antennes_entry.text())
-            num_zones = int(self.num_zones_entry.text())
-            min_antennes_par_zone = [int(x) for x in self.min_antennes_entry.text().split(',')]
+            model = Model("antenna_placement")
+            sites = model.addVars(len(self.map_view.sites), vtype=GRB.BINARY, name="Site")
+            model.setObjective(sites.sum(), GRB.MINIMIZE)
 
-            # Call the optimization function
-            result_text = self.run_optimizer(num_antennes, num_zones, min_antennes_par_zone)
+            for zone_name, zone_info in self.zones.items():
+                model.addConstr(sum(sites[i] for i, (site_item, _) in enumerate(self.map_view.sites)
+                                    if zone_info['rect'].sceneBoundingRect().intersects(site_item.sceneBoundingRect())) >= 1, f"cover_{zone_name}")
 
-            # Display the result in a pop-up window
-            self.show_result_popup(result_text)
+            model.optimize()
+
+            if model.status == GRB.OPTIMAL:
+                for i, (site_item, _) in enumerate(self.map_view.sites):
+                    if sites[i].X > 0.5:
+                        site_item.setBrush(QBrush(Qt.green))
+                QMessageBox.information(self, 'Optimization Result', 'Optimization completed successfully.')
+            else:
+                QMessageBox.warning(self, 'Optimization Result', 'No feasible solution found.')
 
         except Exception as e:
-            # Display an error message for invalid input
-            error_msg = 'Oops, an error occurred! '
-            self.show_error_popup(error_msg)
-
-    def run_optimizer(self, num_antennes, num_zones, min_antennes_par_zone):
-        # Create Gurobi model
-        model = gp.Model('Antenna_Optimization')
-
-        # Decision variables
-        antennas = model.addVars(num_antennes, vtype=GRB.BINARY, name="antennas")
-
-        # Objective function - Minimize the total number of antennas
-        model.setObjective(antennas.sum(), GRB.MINIMIZE)
-
-        # Constraints
-        for i in range(num_zones - 1):
-            model.addConstr(antennas.sum('*') == 2, f'Antennas_Between_Zones_{i + 1}')
-
-        for i in range(num_zones):
-            model.addConstr(antennas.sum('*') >= min_antennes_par_zone[i], f'Min_Antennas_Zone_{i}')
-
-        # Optimize the model
-        model.optimize()
-
-        # Build the result text
-        if model.status == gp.GRB.OPTIMAL:
-            result_text = f"Optimal solution found. Number of antennas to deploy: {int(model.ObjVal)}\n"
-            for i, v in enumerate(model.getVars()):
-                if v.x > 0.5:
-                    result_text += f"Antenna {i + 1} is deployed.\n"
-        elif model.status == gp.GRB.INFEASIBLE:
-            result_text = "The model is infeasible."
-        elif model.status == gp.GRB.INF_OR_UNBD:
-            result_text = "The model has an infinite optimal solution or is unbounded."
-        else:
-            result_text = "No solution found."
-
-        return result_text
-
-    def show_result_popup(self, result_text):
-        msg = QMessageBox()
-        msg.setWindowTitle("Antenna Optimization Result")
-        msg.setIcon(QMessageBox.Information)
-        msg.setText(result_text)
-        msg.setStandardButtons(QMessageBox.Ok)
-        msg.exec()
-
-    def show_error_popup(self, error_msg):
-        msg = QMessageBox()
-        msg.setWindowTitle("Error")
-        msg.setIcon(QMessageBox.Critical)
-        msg.setText(error_msg)
-        msg.setStandardButtons(QMessageBox.Ok)
-        msg.exec()
+            QMessageBox.critical(self, 'Optimization Error', str(e))
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    style = """
-        QWidget{
-            background: #262D37;
-            margin: "auto";
-        }
-        QLabel{
-            color: #fff;
-            font-size: 12pt;
-        }
-        QPushButton {
-            color: white;
-            background: #0577a8;
-            border: 2px #DADADA solid;
-            padding: 10px 20px;
-            font-weight: bold;
-            outline: none;
-        }
-        QPushButton:hover{
-            border: 2px #C6C6C6 solid;
-            color: #fff;
-            background: #0892D0;
-        }
-        QLineEdit {
-            padding: 5px;
-            color: #fff;
-            border-style: solid;
-            border: 2px solid #fff;
-            border-radius: 8px;
-            font-size: 12pt;
-        }
+    stylesheet = """
+    QWidget{
+        background: #262D37;
+    }
+    QLabel{
+        color: #fff;
+        font-size: 12pt;
+    }
+    QPushButton {
+        color: white;
+        background: #0577a8;
+        border: 2px #DADADA solid;
+        padding: 10px 20px;
+        font-weight: bold;
+        outline: none;
+    }
+    QPushButton:hover{
+        border: 2px #C6C6C6 solid;
+        color: #fff;
+        background: #0892D0;
+    }
+    QLineEdit {
+        padding: 5px;
+        color: #fff;
+        border-style: solid;
+        border: 2px solid #fff;
+        border-radius: 8px;
+        font-size: 12pt;
+    }
     """
-    app.setStyleSheet(style)
-    gui = AntennaPlacementSolver()
-    gui.show()
-    sys.exit(app.exec())
-
+    app.setStyleSheet(stylesheet)
+    main_window = MainApplicationWindow()
+    main_window.show()
+    sys.exit(app.exec_())
