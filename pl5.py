@@ -68,22 +68,29 @@ class MainApplicationWindow(QMainWindow):
         self.setWindowTitle('Antenna Placement Optimization')
         main_layout = QVBoxLayout(self.central_widget)
 
-        zone_layout = QHBoxLayout()
+        zone_layout = QVBoxLayout()  # Change to QVBoxLayout for vertical stacking
         self.zones_input = QLineEdit()
         self.zones_submit_button = QPushButton('Submit Zones')
         zone_layout.addWidget(QLabel('Enter zones (comma-separated):'))
         zone_layout.addWidget(self.zones_input)
         zone_layout.addWidget(self.zones_submit_button)
 
-        main_layout.addLayout(zone_layout)
-
         self.zones_submit_button.clicked.connect(self.submit_zones)
 
-        self.map_view = None
+        buttons_layout = QHBoxLayout()
         self.solve_button = QPushButton('Solve Optimization', self)
         self.solve_button.clicked.connect(self.solve_optimization)
         self.solve_button.setEnabled(False)
-        main_layout.addWidget(self.solve_button)
+        buttons_layout.addWidget(self.solve_button)
+
+        # Add buttons layout to the main layout
+        zone_layout.addLayout(buttons_layout)
+
+        # Add the combined layout to the main layout
+        main_layout.addLayout(zone_layout)
+
+        self.map_view = None
+        
 
     def submit_zones(self):
         zones_str = self.zones_input.text()
@@ -150,6 +157,7 @@ if __name__ == '__main__':
         padding: 10px 20px;
         font-weight: bold;
         outline: none;
+        border-radius: 8px;
     }
     QPushButton:hover{
         border: 2px #C6C6C6 solid;
@@ -168,4 +176,5 @@ if __name__ == '__main__':
     app.setStyleSheet(stylesheet)
     main_window = MainApplicationWindow()
     main_window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
+

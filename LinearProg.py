@@ -68,7 +68,7 @@ class LPInterface(QWidget):
         self.pl5_ui.show()
     def show_pl6_ui(self):
         self.pl6_ui.show()    
-if __name__ == "__main__":
+if __name__ == "__main__":  
     app = QApplication(sys.argv)
     style = """
         QWidget{
